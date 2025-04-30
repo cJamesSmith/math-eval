@@ -146,12 +146,12 @@ def infer(args):
     
     file_outputs = []
     correct_cnt = 0
-    for cur_generation_epoch in range(generation_epoch):
+    for cur_generation_epoch in tqdm(range(generation_epoch), "generating..."):
         completions_save_file = f'{args.completions_save_dir}/{model_name}/{args.data_name}/{out_file_prefix}_k{args.n_sampling}_s{args.start_idx}_e{args.end_idx}_gen_round{cur_generation_epoch}.pkl'
         
         completions = llm.generate(prompt_batch, sampling_params)
         
-        save_completions(completions, completions_save_file)
+        # save_completions(completions, completions_save_file)
         for i in range(len(examples)):
             d = examples[i]
             question = parse_question(d, args.data_name)
@@ -198,25 +198,22 @@ def infer(args):
                     pass_at_k = 1 - (comb(n - correct_answers, k) / comb(n, k))
                 pass_at_k_list.append(pass_at_k)
             else:
-                pass_at_k_list.append(0)
-                
-
-            
+                pass_at_k_list.append(0)       
     
-    temp_out_file = out_file + ".tmp"
-    with open(temp_out_file, 'w', encoding='utf-8') as f:
-        count = 0
-        for d in tqdm(file_outputs, "writing generation to jsonl file..."):
-            f.write(json.dumps(d, ensure_ascii=False))
-            f.write("\n")
-            count += 1
-            if count % 100 == 0:
-                f.flush()
-        f.flush()
-    os.rename(temp_out_file, out_file)
+    # temp_out_file = out_file + ".tmp"
+    # with open(temp_out_file, 'w', encoding='utf-8') as f:
+    #     count = 0
+    #     for d in tqdm(file_outputs, "writing generation to jsonl file..."):
+    #         f.write(json.dumps(d, ensure_ascii=False))
+    #         f.write("\n")
+    #         count += 1
+    #         if count % 100 == 0:
+    #             f.flush()
+    #     f.flush()
+    # os.rename(temp_out_file, out_file)
     
     results_file = out_file + ".res"
-    with open(results_file, 'w', encoding='utf-8') as f:
+    with open(results_file, 'a', encoding='utf-8') as f:
         print(f"correct cnt / total cnt: {correct_cnt}/{len(examples)}")
         print(f"Acc: {correct_cnt / len(examples):.4f}")
         f.write(f"correct cnt / total cnt: {correct_cnt}/{len(examples)}\n")
@@ -229,6 +226,7 @@ def infer(args):
         else:
             print(f"Pass@1: {correct_cnt}/{len(examples)} = {correct_cnt / len(examples):.4f}")
             f.write(f"Pass@1: {correct_cnt}/{len(examples)} = {correct_cnt / len(examples):.4f}\n")
+        f.flush()
 
 
 if __name__ == "__main__":
@@ -241,13 +239,15 @@ if __name__ == "__main__":
         envs.VLLM_HOST_IP="0.0.0.0" or "127.0.0.1"
     print(f"available_gpus: {available_gpus}")
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-    llm = LLM(model=model_name_or_path, 
+    llm = LLM(model=model_name_or_path,
+            
             tensor_parallel_size=len(available_gpus), 
             dtype="bfloat16",
             trust_remote_code=True, 
         #   swap_space=60,
             gpu_memory_utilization=0.90,
             )
-    for i in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]:
+    # for i in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]:
+    for i in [1, 2]:
         args.k = i
         infer(args)
