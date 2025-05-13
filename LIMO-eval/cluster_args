@@ -1,0 +1,4 @@
+eval "$(wget -qO- https://download.sail.insea.io/conda-init.sh)"
+conda activate eval
+cd math-eval
+bash eval.sh long-instruct "0"

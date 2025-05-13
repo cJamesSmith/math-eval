@@ -1,0 +1,5 @@
+eval "$(wget -qO- https://download.sail.insea.io/conda-init.sh)"
+conda activate vllm051
+cd /home/aiops/chenxw/math-eval/qwen-eval
+export CUDA_VISIBLE_DEVICES="0"
+bash sh/eval.sh "long-cot" "/home/aiops/chenxw/hfmodels/Qwen2.5-Math-7B" 0
