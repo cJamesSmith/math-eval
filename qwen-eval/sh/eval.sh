@@ -3,13 +3,14 @@ set -ex
 PROMPT_TYPE=$1
 MODEL_NAME_OR_PATH=$2
 SEED=$3
-OUTPUT_DIR=math_eval-longcot-f32
+OUTPUT_DIR=${PROMPT_TYPE}-qwen25-Math-7B
 
 SPLIT="test"
 NUM_TEST_SAMPLE=-1
 
 # English open datasets
-DATA_NAME="gsm8k,math,math500,minerva_math,aime24,amc23"
+# DATA_NAME="math500"
+DATA_NAME="gsm8k,math,math500,olympiadbench,minerva_math,aime24,amc23"
 TOKENIZERS_PARALLELISM=false \
 python3 -u math_eval.py \
     --model_name_or_path ${MODEL_NAME_OR_PATH} \
@@ -25,8 +26,7 @@ python3 -u math_eval.py \
     --start 0 \
     --end -1 \
     --use_vllm \
-    --save_outputs \
-    --overwrite
+    --save_outputs 
 
 # # English multiple-choice datasets
 # DATA_NAME="aqua,sat_math,mmlu_stem"
