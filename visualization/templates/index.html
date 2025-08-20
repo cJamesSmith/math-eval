@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LLM Math Evaluation Results{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-4">📊 Evaluation Dashboard</h1>
+        <p class="lead">Comprehensive overview of LLM performance on mathematical reasoning tasks</p>
+    </div>
+</div>
+
+<!-- Summary Metrics Row -->
+<div class="row mb-4">
+    {% for stat in summary_stats %}
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="metric-value">{{ "%.1f"|format(stat.accuracy) }}%</div>
+                <div class="metric-label">{{ stat.model }}</div>
+                <small class="text-muted">{{ stat.dataset }} ({{ stat.num_samples }} samples)</small>
+                <div class="mt-2">
+                    <small class="badge bg-info">{{ stat.time_minutes }}</small>
+                    {% if stat.empty_samples > 0 %}
+                    <small class="badge bg-warning">{{ stat.empty_samples }} empty</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Charts Section -->
+<div class="row">
+    <!-- Accuracy Comparison Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">🎯 Model Accuracy Comparison</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="accuracyChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance vs Time Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">⏱️ Performance vs Processing Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="timeChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Statistics Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">📋 Detailed Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Model</th>
+                                <th>Dataset</th>
+                                <th>Accuracy (%)</th>
+                                <th>Samples</th>
+                                <th>Processing Time</th>
+                                <th>Empty Responses</th>
+                                <th>Timeouts</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in summary_stats %}
+                            <tr>
+                                <td><code>{{ stat.model }}</code></td>
+                                <td><span class="badge bg-primary">{{ stat.dataset }}</span></td>
+                                <td>
+                                    <strong>{{ "%.1f"|format(stat.accuracy) }}%</strong>
+                                    <div class="progress mt-1" style="height: 4px;">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: {{ stat.accuracy }}%"></div>
+                                    </div>
+                                </td>
+                                <td>{{ stat.num_samples }}</td>
+                                <td>{{ stat.time_minutes }}</td>
+                                <td>
+                                    {% if stat.empty_samples > 0 %}
+                                    <span class="badge bg-warning">{{ stat.empty_samples }}</span>
+                                    {% else %}
+                                    <span class="text-success">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if stat.timeout_samples > 0 %}
+                                    <span class="badge bg-danger">{{ stat.timeout_samples }}</span>
+                                    {% else %}
+                                    <span class="text-success">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('case_study') }}?model={{ stat.model }}&dataset={{ stat.dataset }}" 
+                                       class="btn btn-sm btn-outline-primary">View Cases</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Prepare data for charts
+const summaryData = {{ summary_stats_json | safe }};
+
+// Accuracy Chart
+const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+new Chart(accuracyCtx, {
+    type: 'bar',
+    data: {
+        labels: summaryData.map(s => s.model.replace('-', '\n')),
+        datasets: [{
+            label: 'Accuracy (%)',
+            data: summaryData.map(s => s.accuracy),
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 205, 86, 0.8)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(255, 205, 86, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Performance vs Time Chart
+const timeCtx = document.getElementById('timeChart').getContext('2d');
+new Chart(timeCtx, {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Models',
+            data: summaryData.map(s => ({
+                x: parseFloat(s.time_minutes.split(':')[0]) + parseFloat(s.time_minutes.split(':')[1])/60,
+                y: s.accuracy
+            })),
+            backgroundColor: summaryData.map((s, i) => [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 205, 86, 0.8)'
+            ][i % 4]),
+            borderColor: summaryData.map((s, i) => [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(255, 205, 86, 1)'
+            ][i % 4]),
+            pointRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: 'Processing Time (minutes)'
+                }
+            },
+            y: {
+                title: {
+                    display: true,
+                    text: 'Accuracy (%)'
+                },
+                beginAtZero: true,
+                max: 100
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const model = summaryData[context.dataIndex].model;
+                        return `${model}: ${context.parsed.y.toFixed(1)}% in ${context.parsed.x.toFixed(1)} min`;
+                    }
+                }
+            },
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

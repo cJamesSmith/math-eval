@@ -1,17 +1,18 @@
 set -ex
-# export CUDA_VISIBLE_DEVICES=7
-PROMPT_TYPE=$1
-MODEL_NAME_OR_PATH=$2
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+PROMPT_TYPE=long-cot-boxed
+MODEL_NAME=Qwen3-4B-Base
+MODEL_NAME_OR_PATH=$HOME/models/${MODEL_NAME}
 # OUTPUT_DIR=$3
-OUTPUT_DIR=outputs/${PROMPT_TYPE}-qwen25-Math-7B-Instruct
+OUTPUT_DIR=outputs/${PROMPT_TYPE}-${MODEL_NAME}
 # temperature=$4
 temperature=0
 # max_tokens=$5
-max_tokens=2048
+max_tokens=16000
 # top_p=$6
-top_p=1
+top_p=0.95
 # benchmarks=${7:-"gsm8k,math500,minerva_math,gaokao2023en,olympiadbench,college_math,aime24,amc23"}
-benchmarks=${7:-"gsm8k,math,math500,olympiadbench,minerva_math"}
+benchmarks=${7:-"math500"}
 SPLIT="test"
 NUM_TEST_SAMPLE=-1
 OVERWRITE=${8:-false}
