@@ -3,11 +3,11 @@
     "num_scores": 500,
     "timeout_samples": 0,
     "empty_samples": 1,
-    "acc": 73.2,
-    "pass_acc": 73.2,
+    "acc": 75.8,
+    "pass_acc": 75.8,
     "pass@k": {
-        "1": 73.2
+        "1": 75.8
     },
-    "time_use_in_second": 189.97960233688354,
-    "time_use_in_minite": "3:09"
+    "time_use_in_second": 181.62507915496826,
+    "time_use_in_minite": "3:01"
 }

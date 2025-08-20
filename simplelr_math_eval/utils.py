@@ -134,28 +134,28 @@ PROMPT_TEMPLATES = {
     "qwen-boxed": (
         "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
         "<|im_start|>user\n{input}\nPlease reason step by step, and put your final answer within \\boxed{{}}.<|im_end|>\n"
-        "<|im_start|>assistant\n",
+        "<|im_start|>assistant\n<think>\n\n</think>\n\n",
         "{output}",
         "\n\n",
     ),
     "qwen25-math-cot": (
         "<|im_start|>system\nPlease reason step by step, and put your final answer within \\boxed{{}}.<|im_end|>\n"
         "<|im_start|>user\n{input}<|im_end|>\n"
-        "<|im_start|>assistant\n",
+        "<|im_start|>assistant\n<think>\n\n</think>\n\n",
         "{output}",
         "\n\n",
     ),
     "long-cot": (
         "<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The assistant should 1) Identify core concepts and required formulas. 2) Break down solutions into logical, numbered steps. 3) Verify results using alternative methods or substitutions. Put your final answer within \\boxed{{}}.<|im_end|>\n"
         "<|im_start|>user\n{input}<|im_end|>\n"
-        "<|im_start|>assistant\n",
+        "<|im_start|>assistant\n<think>\n\n</think>\n\n",
         "{output}",
         "\n\n",
     ),
     "long-cot-boxed": (
         "<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it.<|im_end|>\n"
         "<|im_start|>user\n{input}\nThe assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The assistant should 1) Identify core concepts and required formulas. 2) Break down solutions into logical, numbered steps. 3) Verify results using alternative methods or substitutions. Put your final answer within \\boxed{{}}.<|im_end|>\n"
-        "<|im_start|>assistant\n",
+        "<|im_start|>assistant\n<think>\n\n</think>\n\n",
         "{output}",
         "\n\n",
     ),
