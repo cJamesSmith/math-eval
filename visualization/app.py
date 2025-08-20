@@ -104,9 +104,93 @@ class DataLoader:
                 results.append(result_copy)
         
         return results
+    
+    def get_differential_results(self, model1=None, model2=None, dataset=None, 
+                               diff_type='model1_correct_model2_incorrect', 
+                               difficulty_level=None, question_contains=None):
+        """Get results showing differences between two models."""
+        results = []
+        
+        # Get all results for the specified dataset
+        model1_results = {}
+        model2_results = {}
+        
+        for key, data in self.data.items():
+            if dataset and data['dataset'] != dataset:
+                continue
+            
+            if model1 and data['model'] == model1:
+                for result in data['results']:
+                    model1_results[result['idx']] = result
+            
+            if model2 and data['model'] == model2:
+                for result in data['results']:
+                    model2_results[result['idx']] = result
+        
+        # Find common questions between the two models
+        common_indices = set(model1_results.keys()) & set(model2_results.keys())
+        
+        for idx in common_indices:
+            result1 = model1_results[idx]
+            result2 = model2_results[idx]
+            
+            # Apply difficulty filter
+            if difficulty_level is not None:
+                if result1.get('level') != difficulty_level:
+                    continue
+            
+            # Apply question content filter
+            if question_contains:
+                if question_contains.lower() not in result1['question'].lower():
+                    continue
+            
+            # Determine if this result matches the differential criteria
+            model1_correct = result1['score'][0] if result1['score'] else False
+            model2_correct = result2['score'][0] if result2['score'] else False
+            
+            include_result = False
+            
+            if diff_type == 'model1_correct_model2_incorrect':
+                include_result = model1_correct and not model2_correct
+            elif diff_type == 'model2_correct_model1_incorrect':
+                include_result = model2_correct and not model1_correct
+            elif diff_type == 'both_correct':
+                include_result = model1_correct and model2_correct
+            elif diff_type == 'both_incorrect':
+                include_result = not model1_correct and not model2_correct
+            elif diff_type == 'any_difference':
+                include_result = model1_correct != model2_correct
+            
+            if include_result:
+                # Create combined result
+                combined_result = {
+                    'idx': idx,
+                    'question': result1['question'],
+                    'gt': result1.get('gt', result1.get('answer', '')),
+                    'gt_cot': result1.get('gt_cot', ''),
+                    'level': result1.get('level'),
+                    'dataset': dataset,
+                    'model1': {
+                        'name': model1,
+                        'prediction': result1['pred'][0] if result1['pred'] else '',
+                        'correct': model1_correct,
+                        'reasoning': result1['code'][0] if result1.get('code') else '',
+                        'finish_reason': result1['finish_reason'][0] if result1.get('finish_reason') else ''
+                    },
+                    'model2': {
+                        'name': model2,
+                        'prediction': result2['pred'][0] if result2['pred'] else '',
+                        'correct': model2_correct,
+                        'reasoning': result2['code'][0] if result2.get('code') else '',
+                        'finish_reason': result2['finish_reason'][0] if result2.get('finish_reason') else ''
+                    }
+                }
+                results.append(combined_result)
+        
+        return results
 
 # Initialize data loader
-data_loader = DataLoader('simplelr_math_eval/outputs')
+data_loader = DataLoader('/home/aiops/chenxw/math-eval/simplelr_math_eval/outputs')
 
 @app.route('/')
 def index():
@@ -186,22 +270,76 @@ def api_cases():
         'total_pages': (total + per_page - 1) // per_page
     })
 
-@app.route('/comparison')
-def comparison():
-    """Model comparison page."""
-    return render_template('comparison.html')
+@app.route('/differential')
+def differential():
+    """Differential comparison page."""
+    # Get available models and datasets
+    models = set()
+    datasets = set()
+    levels = set()
+    
+    for key, data in data_loader.data.items():
+        models.add(data['model'])
+        datasets.add(data['dataset'])
+        for result in data['results']:
+            if 'level' in result:
+                levels.add(result['level'])
+    
+    return render_template('differential.html', 
+                         models=sorted(models), 
+                         datasets=sorted(datasets),
+                         levels=sorted(levels))
 
-@app.route('/api/comparison_data')
-def api_comparison_data():
-    """API endpoint for model comparison data."""
-    summary_stats = data_loader.get_summary_stats()
+@app.route('/api/differential')
+def api_differential():
+    """API endpoint for differential comparison results."""
+    model1 = request.args.get('model1')
+    model2 = request.args.get('model2')
+    dataset = request.args.get('dataset')
+    diff_type = request.args.get('diff_type', 'model1_correct_model2_incorrect')
+    difficulty_level = request.args.get('difficulty_level')
+    question_contains = request.args.get('question_contains')
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 20))
     
-    # Group by dataset for comparison
-    comparison_data = defaultdict(list)
-    for stat in summary_stats:
-        comparison_data[stat['dataset']].append(stat)
+    if not model1 or not model2:
+        return jsonify({
+            'error': 'Both model1 and model2 must be specified',
+            'results': [],
+            'total': 0,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': 0
+        })
     
-    return jsonify(dict(comparison_data))
+    if difficulty_level:
+        try:
+            difficulty_level = int(difficulty_level)
+        except ValueError:
+            difficulty_level = None
+    
+    results = data_loader.get_differential_results(
+        model1=model1,
+        model2=model2,
+        dataset=dataset,
+        diff_type=diff_type,
+        difficulty_level=difficulty_level,
+        question_contains=question_contains
+    )
+    
+    # Pagination
+    total = len(results)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_results = results[start:end]
+    
+    return jsonify({
+        'results': paginated_results,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

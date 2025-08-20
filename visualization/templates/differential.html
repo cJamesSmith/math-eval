@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block title %}Differential Analysis - LLM Math Evaluation Results{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-4">🔬 Differential Analysis</h1>
+        <p class="lead">Compare model performance on individual questions - find where models differ</p>
+    </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section">
+    <h5>🎛️ Comparison Filters</h5>
+    <form id="differentialForm">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label for="model1Select" class="form-label">Model 1 <span class="text-danger">*</span></label>
+                <select class="form-select" id="model1Select" name="model1" required>
+                    <option value="">Select Model 1...</option>
+                    {% for model in models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="model2Select" class="form-label">Model 2 <span class="text-danger">*</span></label>
+                <select class="form-select" id="model2Select" name="model2" required>
+                    <option value="">Select Model 2...</option>
+                    {% for model in models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="datasetSelect" class="form-label">Dataset</label>
+                <select class="form-select" id="datasetSelect" name="dataset">
+                    <option value="">All Datasets</option>
+                    {% for dataset in datasets %}
+                    <option value="{{ dataset }}">{{ dataset }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="diffTypeSelect" class="form-label">Difference Type</label>
+                <select class="form-select" id="diffTypeSelect" name="diff_type">
+                    <option value="model1_correct_model2_incorrect">Model 1 ✓, Model 2 ✗</option>
+                    <option value="model2_correct_model1_incorrect">Model 1 ✗, Model 2 ✓</option>
+                    <option value="any_difference">Any Difference</option>
+                    <option value="both_correct">Both Correct</option>
+                    <option value="both_incorrect">Both Incorrect</option>
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label for="levelSelect" class="form-label">Difficulty Level</label>
+                <select class="form-select" id="levelSelect" name="difficulty_level">
+                    <option value="">All Levels</option>
+                    {% for level in levels %}
+                    <option value="{{ level }}">Level {{ level }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5 mb-3">
+                <label for="searchInput" class="form-label">Search in Questions</label>
+                <input type="text" class="form-control" id="searchInput" name="question_contains" 
+                       placeholder="Enter keywords to search in question text...">
+            </div>
+            <div class="col-md-2 mb-3">
+                <label for="perPageSelect" class="form-label">Per Page</label>
+                <select class="form-select" id="perPageSelect" name="per_page">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block">🔍 Compare</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Statistics -->
+<div id="summaryStats" class="row mb-4" style="display: none;">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary" id="totalCases">0</h5>
+                <p class="card-text">Total Differences</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success" id="model1Better">0</h5>
+                <p class="card-text"><span id="model1Name">Model 1</span> Better</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info" id="model2Better">0</h5>
+                <p class="card-text"><span id="model2Name">Model 2</span> Better</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning" id="bothSame">0</h5>
+                <p class="card-text">Both Same</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Info -->
+<div id="resultsInfo" class="alert alert-info" style="display: none;">
+    <span id="resultsText"></span>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="text-center" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Analyzing differences between models...</p>
+</div>
+
+<!-- Results Container -->
+<div id="resultsContainer">
+    <div class="alert alert-warning">
+        <i class="fas fa-info-circle"></i>
+        Please select two models and click "Compare" to see the differential analysis.
+    </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationContainer" style="display: none;">
+    <ul class="pagination justify-content-center" id="pagination">
+        <!-- Pagination will be loaded here -->
+    </ul>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let currentFilters = {};
+
+// Form submission
+document.getElementById('differentialForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const model1 = document.getElementById('model1Select').value;
+    const model2 = document.getElementById('model2Select').value;
+    
+    if (!model1 || !model2) {
+        alert('Please select both models to compare');
+        return;
+    }
+    
+    if (model1 === model2) {
+        alert('Please select different models to compare');
+        return;
+    }
+    
+    currentPage = 1;
+    loadDifferentialResults();
+});
+
+function loadDifferentialResults(page = 1) {
+    currentPage = page;
+    
+    // Show loading spinner
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('resultsContainer').innerHTML = '';
+    document.getElementById('paginationContainer').style.display = 'none';
+    document.getElementById('summaryStats').style.display = 'none';
+    
+    // Collect form data
+    const formData = new FormData(document.getElementById('differentialForm'));
+    const params = new URLSearchParams();
+    
+    for (const [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
+    params.append('page', page);
+    
+    // Store current filters
+    currentFilters = Object.fromEntries(params.entries());
+    
+    // Fetch data
+    fetch('/api/differential?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            
+            if (data.error) {
+                document.getElementById('resultsContainer').innerHTML = 
+                    `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+            
+            renderDifferentialResults(data);
+            renderPagination(data);
+            updateResultsInfo(data);
+            updateSummaryStats(data);
+            
+            // Re-render MathJax
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading differential results:', error);
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('resultsContainer').innerHTML = 
+                '<div class="alert alert-danger">Error loading comparison results. Please try again.</div>';
+        });
+}
+
+function renderDifferentialResults(data) {
+    const container = document.getElementById('resultsContainer');
+    
+    if (data.results.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <h5>No differences found</h5>
+                <p>The selected models have identical performance on all questions matching your criteria. 
+                Try selecting different models or adjusting your filters.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    data.results.forEach((result, index) => {
+        const model1Correct = result.model1.correct;
+        const model2Correct = result.model2.correct;
+        
+        let comparisonClass, comparisonBadge, comparisonText;
+        if (model1Correct && !model2Correct) {
+            comparisonClass = 'border-success';
+            comparisonBadge = 'bg-success';
+            comparisonText = `${result.model1.name} ✓, ${result.model2.name} ✗`;
+        } else if (!model1Correct && model2Correct) {
+            comparisonClass = 'border-info';
+            comparisonBadge = 'bg-info';
+            comparisonText = `${result.model1.name} ✗, ${result.model2.name} ✓`;
+        } else if (model1Correct && model2Correct) {
+            comparisonClass = 'border-warning';
+            comparisonBadge = 'bg-warning text-dark';
+            comparisonText = 'Both Correct';
+        } else {
+            comparisonClass = 'border-danger';
+            comparisonBadge = 'bg-danger';
+            comparisonText = 'Both Incorrect';
+        }
+        
+        html += `
+        <div class="card mb-4 ${comparisonClass}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <span class="badge bg-secondary me-2">Question #${result.idx + 1}</span>
+                    <span class="badge ${comparisonBadge}">${comparisonText}</span>
+                    ${result.level ? `<span class="badge bg-light text-dark ms-1">Level ${result.level}</span>` : ''}
+                </h6>
+                <button class="btn btn-outline-secondary btn-sm" type="button" 
+                        data-bs-toggle="collapse" data-bs-target="#collapse${index}">
+                    Toggle Details
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="question-text">
+                    <h6>📝 Question:</h6>
+                    <div>${result.question}</div>
+                </div>
+                
+                <div class="mt-3">
+                    <strong>🎯 Ground Truth:</strong>
+                    <div class="mt-1"><code>${result.gt}</code></div>
+                </div>
+                
+                <!-- Model Comparison -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card ${model1Correct ? 'border-success' : 'border-danger'}">
+                            <div class="card-header ${model1Correct ? 'bg-success' : 'bg-danger'} text-white">
+                                <h6 class="mb-0">
+                                    ${result.model1.name} 
+                                    ${model1Correct ? '✓' : '✗'}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <strong>Prediction:</strong>
+                                <div class="mt-1"><code>${result.model1.prediction || 'No prediction'}</code></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card ${model2Correct ? 'border-success' : 'border-danger'}">
+                            <div class="card-header ${model2Correct ? 'bg-success' : 'bg-danger'} text-white">
+                                <h6 class="mb-0">
+                                    ${result.model2.name} 
+                                    ${model2Correct ? '✓' : '✗'}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <strong>Prediction:</strong>
+                                <div class="mt-1"><code>${result.model2.prediction || 'No prediction'}</code></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="collapse mt-3" id="collapse${index}">
+                    <hr>
+                    <!-- Detailed reasoning for both models -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>💭 ${result.model1.name} Reasoning:</h6>
+                            <div class="prediction-text" style="max-height: 300px; overflow-y: auto;">
+                                ${result.model1.reasoning ? result.model1.reasoning.replace(/\n/g, '<br>') : 'No reasoning provided'}
+                            </div>
+                            <small class="text-muted">Finish reason: ${result.model1.finish_reason || 'N/A'}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>💭 ${result.model2.name} Reasoning:</h6>
+                            <div class="prediction-text" style="max-height: 300px; overflow-y: auto;">
+                                ${result.model2.reasoning ? result.model2.reasoning.replace(/\n/g, '<br>') : 'No reasoning provided'}
+                            </div>
+                            <small class="text-muted">Finish reason: ${result.model2.finish_reason || 'N/A'}</small>
+                        </div>
+                    </div>
+                    
+                    ${result.gt_cot ? `
+                    <div class="mt-3">
+                        <h6>📚 Reference Solution:</h6>
+                        <div class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+                            ${result.gt_cot.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Dataset: ${result.dataset}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function renderPagination(data) {
+    if (data.total_pages <= 1) {
+        document.getElementById('paginationContainer').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('paginationContainer').style.display = 'block';
+    const pagination = document.getElementById('pagination');
+    
+    let html = '';
+    
+    // Previous button
+    html += `
+    <li class="page-item ${data.page === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadDifferentialResults(${data.page - 1}); return false;">Previous</a>
+    </li>
+    `;
+    
+    // Page numbers
+    for (let i = Math.max(1, data.page - 2); i <= Math.min(data.total_pages, data.page + 2); i++) {
+        html += `
+        <li class="page-item ${i === data.page ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadDifferentialResults(${i}); return false;">${i}</a>
+        </li>
+        `;
+    }
+    
+    // Next button
+    html += `
+    <li class="page-item ${data.page === data.total_pages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadDifferentialResults(${data.page + 1}); return false;">Next</a>
+    </li>
+    `;
+    
+    pagination.innerHTML = html;
+}
+
+function updateResultsInfo(data) {
+    const info = document.getElementById('resultsInfo');
+    const text = document.getElementById('resultsText');
+    
+    if (data.total > 0) {
+        const start = (data.page - 1) * data.per_page + 1;
+        const end = Math.min(start + data.per_page - 1, data.total);
+        text.textContent = `Showing ${start}-${end} of ${data.total} differential cases`;
+        info.style.display = 'block';
+    } else {
+        info.style.display = 'none';
+    }
+}
+
+function updateSummaryStats(data) {
+    if (data.total === 0) {
+        document.getElementById('summaryStats').style.display = 'none';
+        return;
+    }
+    
+    // Calculate statistics from all results (not just current page)
+    let model1Better = 0;
+    let model2Better = 0;
+    let bothSame = 0;
+    
+    // For this we need to make another request to get all results, or modify the API
+    // For now, we'll just show the total from current filters
+    document.getElementById('totalCases').textContent = data.total;
+    document.getElementById('model1Name').textContent = currentFilters.model1 || 'Model 1';
+    document.getElementById('model2Name').textContent = currentFilters.model2 || 'Model 2';
+    
+    // Update stats based on current page results
+    data.results.forEach(result => {
+        const model1Correct = result.model1.correct;
+        const model2Correct = result.model2.correct;
+        
+        if (model1Correct && !model2Correct) {
+            model1Better++;
+        } else if (!model1Correct && model2Correct) {
+            model2Better++;
+        } else {
+            bothSame++;
+        }
+    });
+    
+    document.getElementById('model1Better').textContent = model1Better;
+    document.getElementById('model2Better').textContent = model2Better;
+    document.getElementById('bothSame').textContent = bothSame;
+    
+    document.getElementById('summaryStats').style.display = 'flex';
+}
+</script>
+{% endblock %}

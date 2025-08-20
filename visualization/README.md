@@ -16,11 +16,105 @@ A comprehensive web application for visualizing and analyzing Large Language Mod
 - **LaTeX Support**: Mathematical expressions rendered with MathJax
 - **Pagination**: Efficient browsing of large datasets
 
-### ⚖️ Model Comparison
-- **Side-by-Side Analysis**: Compare different model configurations
-- **Visual Charts**: Bar charts, radar charts, and scatter plots for comprehensive analysis
-- **Head-to-Head Comparison**: Direct comparison between two selected models
-- **Efficiency Analysis**: Performance vs processing time visualization
+### 🔬 Differential Analysis
+- **Question-Level Comparison**: Find specific questions where models give different answers
+- **Filtered Differences**: Show cases where Model A is correct but Model B is incorrect (and vice versa)
+- **Side-by-Side Reasoning**: Compare the reasoning process of both models for the same question
+- **Multiple Comparison Types**: Both correct, both incorrect, any difference, or specific model advantages
+- **Advanced Filtering**: Filter by difficulty level, question content, and dataset
+
+## 🔬 Differential Analysis Usage Guide
+
+The Differential Analysis page allows you to compare two models on a question-by-question basis to identify specific cases where they differ in performance. This is extremely valuable for understanding:
+
+- **Model Strengths & Weaknesses**: Which types of questions does Model A handle better than Model B?
+- **Error Analysis**: What specific mistakes does each model make?
+- **Reasoning Comparison**: How do different models approach the same problem?
+
+### 🎯 Key Features
+
+#### 1. **Flexible Comparison Types**
+- **Model 1 ✓, Model 2 ✗**: Cases where the first model is correct but the second is wrong
+- **Model 1 ✗, Model 2 ✓**: Cases where the second model is correct but the first is wrong  
+- **Any Difference**: All cases where models disagree (regardless of correctness)
+- **Both Correct**: Cases where both models get the right answer (good for comparing reasoning)
+- **Both Incorrect**: Cases where both models fail (identify common difficult questions)
+
+#### 2. **Detailed Comparison View**
+- Side-by-side model predictions
+- Full reasoning chains for both models
+- Ground truth answer for reference
+- Visual indicators for correct/incorrect answers
+
+#### 3. **Advanced Filtering**
+- Filter by difficulty level
+- Search within question text
+- Dataset selection
+- Pagination for large result sets
+
+### 📝 How to Use
+
+1. **Navigate to Differential Analysis**: Click "Differential Analysis" in the navigation menu
+2. **Select Models**: Choose two different models to compare (required)
+3. **Choose Comparison Type**: Select what type of differences you want to see
+4. **Apply Filters**: Optionally filter by dataset, difficulty, or question content
+5. **Click Compare**: View the results with detailed side-by-side analysis
+
+### 💡 Example Use Cases
+
+#### Case Study 1: Model Improvement Analysis
+**Scenario**: You want to see where `qwen25-math-cot` performs better than `qwen-boxed`
+
+**Steps**:
+1. Model 1: `qwen25-math-cot`
+2. Model 2: `qwen-boxed`  
+3. Difference Type: "Model 1 ✓, Model 2 ✗"
+4. Click Compare
+
+**Result**: You'll see all questions where the newer model succeeds but the older one fails, helping you understand the improvement.
+
+#### Case Study 2: Common Failure Analysis
+**Scenario**: Find questions that challenge both models
+
+**Steps**:
+1. Select any two models
+2. Difference Type: "Both Incorrect"
+3. Optional: Filter by difficulty level to focus on hard questions
+
+**Result**: Identify the most challenging questions that need attention in future model development.
+
+#### Case Study 3: Reasoning Style Comparison
+**Scenario**: Compare how different prompting strategies work
+
+**Steps**:
+1. Model 1: `long-cot` (chain of thought)
+2. Model 2: `long-cot-boxed` (boxed answers)
+3. Difference Type: "Both Correct"
+
+**Result**: See how different prompting affects reasoning quality even when both get correct answers.
+
+### 📊 Understanding the Results
+
+#### Color Coding
+- **Green Border**: Model 1 correct, Model 2 incorrect
+- **Blue Border**: Model 1 incorrect, Model 2 correct  
+- **Yellow Border**: Both models correct
+- **Red Border**: Both models incorrect
+
+#### Information Displayed
+- **Question**: The mathematical problem
+- **Ground Truth**: Correct answer
+- **Model Predictions**: Each model's answer with ✓/✗ indicators
+- **Detailed Reasoning**: Full thought process for each model (expandable)
+- **Metadata**: Difficulty level, dataset, completion status
+
+### 🔍 Tips for Effective Analysis
+
+1. **Start Broad**: Use "Any Difference" to get an overview of how models differ
+2. **Focus on Strengths**: Use specific filters to understand where each model excels
+3. **Study Reasoning**: Always expand the detailed reasoning to understand *why* models differ
+4. **Use Difficulty Filters**: Start with easier problems to understand basic differences
+5. **Search Functionality**: Look for specific mathematical topics (e.g., "geometry", "calculus")
 
 ## 🏗️ Project Structure
 
@@ -33,7 +127,7 @@ math-eval/
 │   ├── base.html         # Base template with navigation
 │   ├── index.html        # Dashboard page
 │   ├── case_study.html   # Case study browser
-│   └── comparison.html   # Model comparison page
+│   └── differential.html # Differential analysis page
 └── static/              # Static files (CSS, JS, images)
 ```
 
@@ -111,7 +205,7 @@ Each line contains a JSON object with:
 3. **Access the application**
    - Dashboard: http://localhost:5000
    - Case Studies: http://localhost:5000/case_study
-   - Model Comparison: http://localhost:5000/comparison
+   - Differential Analysis: http://localhost:5000/differential
 
 ### Manual Installation
 
@@ -176,9 +270,6 @@ Returns filtered case results with pagination.
 - `question_contains`: Search in question text
 - `page`: Page number (default: 1)
 - `per_page`: Results per page (default: 20)
-
-### GET `/api/comparison_data`
-Returns data grouped by dataset for model comparison.
 
 ## 🎨 Customization
 
