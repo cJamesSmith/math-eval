@@ -1,3 +1,5 @@
 outputs
 completions
 __pycache__
+
+!simplelr_math_eval/outputs
